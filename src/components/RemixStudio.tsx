@@ -44,9 +44,12 @@ const RemixStudio: React.FC = () => {
           setStatus('processing');
         }
       });
-      
+      const API_URL = import.meta.env.PROD 
+      ? 'https://proto-mixmaster-server-production.up.railway.app'  // Replace with your Railway URL
+      : 'http://localhost:8000';
+
       // Handle the successful response
-      setRemixedAudio(response.audioUrl);
+      setRemixedAudio(`${API_URL}${response.audioUrl}`);
       setStatus('complete');
     } catch (error) {
       console.error('Error processing audio:', error);

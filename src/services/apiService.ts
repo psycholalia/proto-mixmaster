@@ -16,7 +16,6 @@ export const processAudio = async (formData: FormData, onProgress?: ProgressCall
       },
       onUploadProgress: onProgress,
     });
-
     return response.data;
   } catch (error) {
     console.error('API error:', error);
