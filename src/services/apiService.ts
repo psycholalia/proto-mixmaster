@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 const API_URL = import.meta.env.PROD 
-  ? 'https://proto-mixmaster-server-production.up.railway.app'  // Replace with your Railway URL
-  : 'http://localhost:8000';
+  ? '/.netlify/functions'
+  : 'http://localhost:8888/.netlify/functions';
 
 interface ProgressCallback {
   (progressEvent: { loaded: number; total: number }): void;
@@ -10,14 +10,27 @@ interface ProgressCallback {
 
 export const processAudio = async (formData: FormData, onProgress?: ProgressCallback) => {
   try {
-    const response = await axios.post(`${API_URL}/process-audio`, formData, {
+    const file = formData.get('audio') as File;
+    const arrayBuffer = await file.arrayBuffer();
+    const base64Data = Buffer.from(arrayBuffer).toString('base64');
+
+    const response = await axios.post(`${API_URL}/process-audio`, base64Data, {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        'Content-Type': 'application/json',
       },
       onUploadProgress: onProgress,
     });
 
-    return response.data;
+    // Convert base64 audio data back to blob
+    const audioData = Buffer.from(response.data.audioData, 'base64');
+    const audioBlob = new Blob([audioData], { type: 'audio/mpeg' });
+    const audioUrl = URL.createObjectURL(audioBlob);
+
+    return {
+      status: 'success',
+      message: 'Audio processed successfully',
+      audioUrl,
+    };
   } catch (error) {
     console.error('API error:', error);
     throw error;
