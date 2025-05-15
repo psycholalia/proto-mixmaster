@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const API_URL = import.meta.env.PROD 
-  ? 'https://j-dilla-remix-api.up.railway.app'  // Replace this with your actual Railway URL after deployment
+  ? 'https://j-dilla-remix-api.up.railway.app'  // Replace with your Railway URL
   : 'http://localhost:8000';
 
 interface ProgressCallback {
