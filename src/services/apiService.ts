@@ -1,8 +1,8 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.PROD 
-  ? '/.netlify/functions'
-  : 'http://localhost:8888/.netlify/functions';
+const API_URL = import.meta.env.VITE_SUPABASE_URL 
+  ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`
+  : 'http://localhost:54321/functions/v1';
 
 interface ProgressCallback {
   (progressEvent: { loaded: number; total: number }): void;
@@ -12,18 +12,25 @@ export const processAudio = async (formData: FormData, onProgress?: ProgressCall
   try {
     const file = formData.get('audio') as File;
     const arrayBuffer = await file.arrayBuffer();
-    const base64Data = Buffer.from(arrayBuffer).toString('base64');
+    const base64Data = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
-    const response = await axios.post(`${API_URL}/process-audio`, base64Data, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      onUploadProgress: onProgress,
-    });
+    const response = await axios.post(`${API_URL}/process-audio`, 
+      { audioData: base64Data },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+        },
+        onUploadProgress: onProgress,
+      }
+    );
 
-    // Convert base64 audio data back to blob
-    const audioData = Buffer.from(response.data.audioData, 'base64');
-    const audioBlob = new Blob([audioData], { type: 'audio/mpeg' });
+    const audioData = atob(response.data.audioData);
+    const audioArray = new Uint8Array(audioData.length);
+    for (let i = 0; i < audioData.length; i++) {
+      audioArray[i] = audioData.charCodeAt(i);
+    }
+    const audioBlob = new Blob([audioArray], { type: 'audio/mpeg' });
     const audioUrl = URL.createObjectURL(audioBlob);
 
     return {
