@@ -1,8 +1,8 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_SUPABASE_URL 
-  ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`
-  : 'http://localhost:54321/functions/v1';
+const API_URL = import.meta.env.PROD 
+  ? 'https://j-dilla-remix-api.up.railway.app'  // Replace with your Railway URL
+  : 'http://localhost:8000';
 
 interface ProgressCallback {
   (progressEvent: { loaded: number; total: number }): void;
@@ -10,28 +10,32 @@ interface ProgressCallback {
 
 export const processAudio = async (formData: FormData, onProgress?: ProgressCallback) => {
   try {
-    const file = formData.get('audio') as File;
-    const arrayBuffer = await file.arrayBuffer();
-    const base64Data = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+    const response = await axios.post(`${API_URL}/process-audio`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      onUploadProgress: onProgress,
+    });
 
-    const response = await axios.post(`${API_URL}/process-audio`, 
-      { audioData: base64Data },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-        },
-        onUploadProgress: onProgress,
+    // Poll for completion
+    const taskId = response.data.taskId;
+    let audioUrl = null;
+    let attempts = 0;
+    const maxAttempts = 30;
+
+    while (!audioUrl && attempts < maxAttempts) {
+      const statusResponse = await axios.get(`${API_URL}/status/${taskId}`);
+      if (statusResponse.data.status === 'complete') {
+        audioUrl = `${API_URL}/audio/${taskId}`;
+        break;
       }
-    );
-
-    const audioData = atob(response.data.audioData);
-    const audioArray = new Uint8Array(audioData.length);
-    for (let i = 0; i < audioData.length; i++) {
-      audioArray[i] = audioData.charCodeAt(i);
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds between polls
+      attempts++;
     }
-    const audioBlob = new Blob([audioArray], { type: 'audio/mpeg' });
-    const audioUrl = URL.createObjectURL(audioBlob);
+
+    if (!audioUrl) {
+      throw new Error('Processing timeout');
+    }
 
     return {
       status: 'success',
