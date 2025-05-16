@@ -1,6 +1,6 @@
 import React from 'react';
 import { Toaster } from 'react-hot-toast';
-import { Headphones, Disc3, Github } from 'lucide-react';
+import { Headphones, Disc3 } from 'lucide-react';
 import Layout from './components/Layout';
 import RemixStudio from './components/RemixStudio';
 
@@ -11,19 +11,8 @@ function App() {
         <div className="flex items-center space-x-2">
           <Disc3 className="h-8 w-8 text-primary-400 animate-record-spin" />
           <h1 className="text-2xl font-bold bg-gradient-to-r from-primary-400 to-secondary-400 bg-clip-text text-transparent">
-            J Dilla Remix Studio
+            Mechanical-Legs
           </h1>
-        </div>
-        <div className="flex space-x-4 items-center">
-          <a 
-            href="https://github.com/yourusername/j-dilla-remix-app" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="text-white/70 hover:text-white transition-colors"
-            aria-label="GitHub Repository"
-          >
-            <Github className="h-5 w-5" />
-          </a>
         </div>
       </header>
       
@@ -45,7 +34,7 @@ function App() {
       <footer className="py-4 px-8 border-t border-white/10 text-center text-white/50 text-sm">
         <div className="flex items-center justify-center space-x-2">
           <Headphones className="h-4 w-4" />
-          <span>Made with love for beat makers everywhere</span>
+          <span>Made with love for makers of all stripes</span>
         </div>
       </footer>
       
