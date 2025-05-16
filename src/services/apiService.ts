@@ -29,7 +29,7 @@ export const processAudio = async (formData: FormData, onProgress?: ProgressCall
         audioUrl = `${API_URL}/audio/${taskId}`;
         break;
       }
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds between polls
+      await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds between polls
       attempts++;
     }
 
