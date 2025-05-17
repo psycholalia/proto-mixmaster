@@ -23,13 +23,15 @@ export const processAudio = async (formData: FormData, onProgress?: ProgressCall
     let attempts = 0;
     const maxAttempts = 30;
 
+    await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds before bothering the server
+
     while (!audioUrl && attempts < maxAttempts) {
       const statusResponse = await axios.get(`${API_URL}/status/${taskId}`);
       if (statusResponse.data.status === 'complete') {
         audioUrl = `${API_URL}/audio/${taskId}`;
         break;
       }
-      await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds between polls
+      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds between polls
       attempts++;
     }
 
