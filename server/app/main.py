@@ -161,7 +161,6 @@ async def apply_j_dilla_effect(
             output_path, 
             y_processed, 
             sr,
-            format='mp3',
             subtype='PCM_16'
         )
         
