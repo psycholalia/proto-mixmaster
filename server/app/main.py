@@ -98,24 +98,38 @@ async def apply_j_dilla_effect(
             start_time = chunk_start_idx / sr
             end_time = (chunk_start_idx + len(chunk)) / sr
             
+            # Find beats within this chunk
             chunk_beats = np.where((beat_times >= start_time) & 
                                  (beat_times < end_time))[0]
             
             for i in chunk_beats:
-                if i % 2 == 1 and i+1 < len(beat_times):
-                    swing_samples = int(swing_amount * sr * (beat_times[1] - beat_times[0]))
-                    beat_start = int((beat_times[i] - start_time) * sr)
-                    if beat_start + swing_samples < len(chunk):
-                        chunk_copy[beat_start:beat_start+swing_samples] = \
-                            chunk[beat_start+swing_samples:beat_start+2*swing_samples]
+                if i % 2 == 1 and i+1 < len(beat_times):  # Only process odd-numbered beats
+                    # Calculate swing timing
+                    current_beat_time = beat_times[i] - start_time
+                    next_beat_time = beat_times[i+1] - start_time if i+1 < len(beat_times) else end_time - start_time
+                    beat_duration = next_beat_time - current_beat_time
+                    
+                    # Convert times to samples
+                    beat_start = int(current_beat_time * sr)
+                    swing_samples = int(swing_amount * beat_duration * sr)
+                    
+                    # Ensure we don't exceed array bounds
+                    if beat_start >= 0 and beat_start + swing_samples < len(chunk):
+                        # Create a temporary buffer for the swung section
+                        temp = chunk[beat_start:beat_start + swing_samples].copy()
+                        # Apply swing by shifting the audio
+                        chunk_copy[beat_start:beat_start + swing_samples] = temp
+
             return chunk_copy
 
         # Process in chunks
         chunk_samples = sr * 5  # 5-second chunks
         y_swung = process_in_chunks(y, chunk_samples, apply_swing)
+        del y
+        gc.collect()
 
         # Time stretching in chunks
-        def stretch_chunk(chunk, _):  # Ignore chunk index for stretching
+        def stretch_chunk(chunk, _):
             return librosa.effects.time_stretch(chunk, rate=time_stretch_factor)
 
         y_stretched = process_in_chunks(y_swung, chunk_samples, stretch_chunk)
@@ -126,7 +140,7 @@ async def apply_j_dilla_effect(
         bit_depth = 16 - int(10 * lofi_amount)
         bit_crusher = float(2 ** (bit_depth - 1))
         
-        def apply_lofi(chunk, _):  # Ignore chunk index for lo-fi effects
+        def apply_lofi(chunk, _):
             # Quantize
             chunk_quantized = np.round(chunk * bit_crusher) / bit_crusher
             # Add vinyl noise (reduced amplitude)
