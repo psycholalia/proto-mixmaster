@@ -9,6 +9,7 @@ import librosa
 import soundfile as sf
 import numpy as np
 import time
+import tracemalloc
 from app import app
 
 # Use Railway volume paths for storage
@@ -41,6 +42,7 @@ async def apply_j_dilla_effect(
     - Time stretching
     - Lo-fi effects
     """
+    tracemalloc.start()
     # Load the audio file
     y, sr = librosa.load(input_path, sr=None)
     
@@ -96,6 +98,8 @@ async def apply_j_dilla_effect(
     
     # Save the processed audio
     sf.write(output_path, output_audio, sr)
+    print('trace mem', tracemalloc.get_traced_memory())
+    tracemalloc.stop()
     
     return {"status": "complete", "file_path": output_path}
 

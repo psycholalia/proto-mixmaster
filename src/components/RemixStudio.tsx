@@ -17,6 +17,60 @@ const RemixStudio: React.FC = () => {
   const [fileName, setFileName] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const extractAudioSnippet = async (file: File): Promise<Blob> => {
+    const audioContext = new AudioContext();
+    const arrayBuffer = await file.arrayBuffer();
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    
+    // Get the first 30 seconds
+    const snippetDuration = Math.min(30, audioBuffer.duration);
+    const sampleRate = audioBuffer.sampleRate;
+    const snippetLength = snippetDuration * sampleRate;
+    
+    // Create a new buffer for the snippet
+    const snippetBuffer = audioContext.createBuffer(
+      audioBuffer.numberOfChannels,
+      snippetLength,
+      sampleRate
+    );
+    
+    // Copy the first 30 seconds of audio data
+    for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
+      const channelData = audioBuffer.getChannelData(channel);
+      const snippetData = snippetBuffer.getChannelData(channel);
+      snippetData.set(channelData.slice(0, snippetLength));
+    }
+    
+    // Convert the snippet to an MP3 blob
+    const offlineContext = new OfflineAudioContext(
+      snippetBuffer.numberOfChannels,
+      snippetLength,
+      sampleRate
+    );
+    
+    const source = offlineContext.createBufferSource();
+    source.buffer = snippetBuffer;
+    source.connect(offlineContext.destination);
+    source.start();
+    
+    const renderedBuffer = await offlineContext.startRendering();
+    const mediaStreamDest = audioContext.createMediaStreamDestination();
+    const sourceNode = audioContext.createBufferSource();
+    sourceNode.buffer = renderedBuffer;
+    sourceNode.connect(mediaStreamDest);
+    sourceNode.start();
+    
+    const mediaRecorder = new MediaRecorder(mediaStreamDest.stream);
+    const chunks: BlobPart[] = [];
+    
+    return new Promise((resolve) => {
+      mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+      mediaRecorder.onstop = () => resolve(new Blob(chunks, { type: 'audio/mpeg' }));
+      mediaRecorder.start();
+      setTimeout(() => mediaRecorder.stop(), snippetDuration * 1000);
+    });
+  };
+
   const handleFileSelected = async (file: File) => {
     if (!file) return;
     
@@ -25,16 +79,18 @@ const RemixStudio: React.FC = () => {
     setProgress(0);
     setErrorMessage(null);
     
-    // Create a URL for the original audio file
-    setOriginalAudio(URL.createObjectURL(file));
-    
     try {
-      // Create FormData object
+      // Create a URL for the original audio file
+      setOriginalAudio(URL.createObjectURL(file));
+      
+      // Extract 30-second snippet
+      const snippet = await extractAudioSnippet(file);
+      
+      // Create FormData with the snippet
       const formData = new FormData();
-      formData.append('audio', file);
+      formData.append('audio', snippet, 'snippet.mp3');
       
       const response = await processAudio(formData, (progressEvent) => {
-        // Handle progress updates
         const percentCompleted = Math.round(
           (progressEvent.loaded * 100) / progressEvent.total
         );
@@ -44,7 +100,7 @@ const RemixStudio: React.FC = () => {
           setStatus('processing');
         }
       });
-      // Handle the successful response
+      
       setRemixedAudio(response.audioUrl);
       setStatus('complete');
     } catch (error) {
@@ -57,12 +113,12 @@ const RemixStudio: React.FC = () => {
   const resetState = () => {
     setStatus('idle');
     setProgress(0);
+    if (originalAudio) URL.revokeObjectURL(originalAudio);
     setOriginalAudio(null);
     setRemixedAudio(null);
     setErrorMessage(null);
     setFileName('');
     
-    // Clear the file input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -145,7 +201,7 @@ const RemixStudio: React.FC = () => {
               <div className="space-y-6">
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <h4 className="font-medium text-white/80">Original</h4>
+                    <h4 className="font-medium text-white/80">Original (First 30s)</h4>
                     {originalAudio && <AudioPlayer audioUrl={originalAudio} />}
                   </div>
                   <div className="space-y-2">
