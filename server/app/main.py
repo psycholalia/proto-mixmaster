@@ -14,13 +14,12 @@ from app import app
 import gc
 from contextlib import contextmanager
 
-# Use Railway volume paths for storage
+# Use absolute paths and ensure directories exist
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
+PROCESSED_DIR = os.path.join(BASE_DIR, "processed")
 
-RAILWAY_VOLUME = os.getenv('RAILWAY_VOLUME_MOUNT_PATH', 'server/data')
-UPLOAD_DIR = os.path.join(RAILWAY_VOLUME, "uploads")
-PROCESSED_DIR = os.path.join(RAILWAY_VOLUME, "processed")
-
-# Create directories in Railway volume
+# Create directories if they don't exist
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(PROCESSED_DIR, exist_ok=True)
 
@@ -162,7 +161,6 @@ async def apply_j_dilla_effect(
             output_path, 
             y_processed, 
             sr,
-            format='mp3',
             subtype='PCM_16'
         )
         
