@@ -54,7 +54,108 @@ def process_in_chunks(y: np.ndarray, chunk_size: int, process_func):
 
 @app.get("/")
 def read_root():
-    return {"message": "J Dilla Remix API"}
+    return {"message": "Audio Processing API"}
+
+async def apply_steve_albini_effect(
+    input_path: str,
+    output_path: str,
+    task_id: str,
+    dynamics_ratio: float = 0.8,  # Controls dynamic range preservation
+    noise_floor: float = 0.005,   # Analog noise floor level
+    saturation: float = 0.3       # Analog tape saturation amount
+):
+    """
+    Process audio to sound like Steve Albini's recording style:
+    - Minimal compression (preserve dynamics)
+    - Slight analog saturation
+    - Natural room ambience
+    - Raw, punchy character
+    """
+    try:
+        # Load audio with high quality settings
+        y, sr = librosa.load(
+            input_path,
+            sr=SAMPLE_RATE,
+            duration=MAX_AUDIO_LENGTH,
+            mono=True
+        )
+
+        # Early cleanup
+        if os.path.exists(input_path):
+            os.remove(input_path)
+        gc.collect()
+
+        def apply_analog_character(chunk, _):
+            # Add subtle analog noise floor
+            noise = np.random.normal(0, noise_floor, len(chunk))
+            chunk = chunk + noise
+
+            # Apply subtle tape saturation
+            chunk = np.tanh(chunk * (1 + saturation)) / (1 + saturation)
+
+            # Preserve dynamics (anti-compression)
+            peaks = np.abs(chunk) > dynamics_ratio
+            chunk[peaks] *= 1.2  # Enhance peaks
+            
+            return chunk
+
+        # Process in chunks
+        chunk_samples = sr * 5  # 5-second chunks
+        y_processed = process_in_chunks(y, chunk_samples, apply_analog_character)
+        del y
+        gc.collect()
+
+        # Enhance transients (Albini's punchy drum sound)
+        def enhance_transients(chunk, _):
+            # Calculate envelope
+            envelope = np.abs(chunk)
+            # Find transients (sudden increases in amplitude)
+            transients = np.diff(envelope, prepend=envelope[0]) > 0.1
+            # Boost transients
+            chunk[transients] *= 1.3
+            return chunk
+
+        y_processed = process_in_chunks(y_processed, chunk_samples, enhance_transients)
+
+        # Add subtle room ambience
+        def add_room_ambience(chunk, _):
+            room_size = 0.1  # Small room reverb
+            delayed = np.zeros_like(chunk)
+            delay_samples = int(sr * room_size)
+            if len(chunk) > delay_samples:
+                delayed[delay_samples:] = chunk[:-delay_samples] * 0.1
+                return chunk + delayed
+            return chunk
+
+        y_processed = process_in_chunks(y_processed, chunk_samples, add_room_ambience)
+
+        # Normalize while preserving dynamics
+        max_amplitude = np.max(np.abs(y_processed))
+        if max_amplitude > 0:
+            # Use softer normalization to maintain dynamic range
+            y_processed = y_processed / max_amplitude * 0.9
+
+        # Save with high quality settings
+        sf.write(
+            output_path,
+            y_processed,
+            sr,
+            subtype='PCM_24'  # Use 24-bit for better dynamic range
+        )
+
+        del y_processed
+        gc.collect()
+
+        return {"status": "complete", "file_path": output_path}
+
+    except Exception as e:
+        print(f"Error processing audio: {e}")
+        # Cleanup on error
+        for path in [input_path, output_path]:
+            if os.path.exists(path):
+                os.remove(path)
+        gc.collect()
+        raise
 
 async def apply_j_dilla_effect(
     input_path: str, 
@@ -181,7 +282,8 @@ async def apply_j_dilla_effect(
 @app.post("/process-audio")
 async def process_audio(
     background_tasks: BackgroundTasks,
-    audio: UploadFile = File(...)
+    audio: UploadFile = File(...),
+    style: str = "dilla"  # Add style parameter
 ):
     """
     Upload and process audio file with proper resource management
@@ -196,7 +298,7 @@ async def process_audio(
     file_extension = os.path.splitext(audio.filename)[1] if audio.filename else ".mp3"
     
     input_path = os.path.join(UPLOAD_DIR, f"{task_id}{file_extension}")
-    output_path = os.path.join(PROCESSED_DIR, f"{task_id}_dilla{file_extension}")
+    output_path = os.path.join(PROCESSED_DIR, f"{task_id}_{style}{file_extension}")
     
     try:
         # Write file in chunks to manage memory
@@ -205,8 +307,11 @@ async def process_audio(
                 buffer.write(chunk)
                 await asyncio.sleep(0)  # Allow other tasks to run
         
+        # Choose processing function based on style
+        process_func = apply_j_dilla_effect if style == "dilla" else apply_steve_albini_effect
+        
         background_tasks.add_task(
-            apply_j_dilla_effect,
+            process_func,
             input_path=input_path,
             output_path=output_path,
             task_id=task_id
