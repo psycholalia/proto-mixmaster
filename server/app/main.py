@@ -131,14 +131,30 @@ async def apply_steve_albini_effect(
         if max_amplitude > 0:
             output = output / max_amplitude * 0.9
 
-        # Save with proper format settings
-        sf.write(
-            output_path,
-            output,
-            sr,
-            format='WAV',
-            subtype='PCM_16'
-        )
+        # Save as MP3 format
+        temp_wav = output_path + '.temp.wav'
+        try:
+            # First save as WAV
+            sf.write(
+                temp_wav,
+                output,
+                sr,
+                format='WAV',
+                subtype='PCM_16'
+            )
+            
+            # Convert to MP3 using librosa and soundfile
+            y_wav, sr_wav = librosa.load(temp_wav, sr=None)
+            sf.write(
+                output_path,
+                y_wav,
+                sr_wav,
+                format='MP3'
+            )
+        finally:
+            # Clean up temporary WAV file
+            if os.path.exists(temp_wav):
+                os.remove(temp_wav)
 
         del output
         gc.collect()
