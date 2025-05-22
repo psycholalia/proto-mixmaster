@@ -4,15 +4,20 @@ import { Upload, Play, Download, Disc, RefreshCw, X } from 'lucide-react';
 import FileUploader from './FileUploader';
 import ProgressBar from './ProgressBar';
 import AudioPlayer from './AudioPlayer';
-import { processAudio } from '../services/apiService';
+import { processAudio, checkStatus } from '../services/apiService';
 
 export type ProcessingStatus = 'idle' | 'uploading' | 'processing' | 'complete' | 'error';
-
+const PRODUCERS = ['dilla', 'albini', 'burns'];
+export type mixObject = {
+  name:string,
+  firstLast: string,
+  mix:string
+}
 const RemixStudio: React.FC = () => {
   const [status, setStatus] = useState<ProcessingStatus>('idle');
   const [progress, setProgress] = useState(0);
   const [originalAudio, setOriginalAudio] = useState<string | null>(null);
-  const [remixedAudio, setRemixedAudio] = useState<string | null>(null);
+  const [remixedAudio, setRemixedAudio] = useState<Array<mixObject>>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -36,7 +41,7 @@ const RemixStudio: React.FC = () => {
       const response = await processAudio(formData, (progressEvent) => {
         // Handle progress updates
         const percentCompleted = Math.round(
-          (progressEvent.loaded * 100) / progressEvent.total
+          (progressEvent.loaded * 30) / progressEvent.total
         );
         setProgress(percentCompleted);
         
@@ -45,8 +50,9 @@ const RemixStudio: React.FC = () => {
         }
       });
       // Handle the successful response
-      setRemixedAudio(response.audioUrl);
-      setStatus('complete');
+      if (response.taskId) {
+          loopStatus(response.taskId)  
+        };
     } catch (error) {
       console.error('Error processing audio:', error);
       setStatus('error');
@@ -58,7 +64,7 @@ const RemixStudio: React.FC = () => {
     setStatus('idle');
     setProgress(0);
     setOriginalAudio(null);
-    setRemixedAudio(null);
+    setRemixedAudio([]);
     setErrorMessage(null);
     setFileName('');
     
@@ -67,6 +73,53 @@ const RemixStudio: React.FC = () => {
       fileInputRef.current.value = '';
     }
   };
+
+  const loopStatus = async (taskId: string) => {
+    let holderArray = new Array()
+    for (let i = 0; i<PRODUCERS.length; i++) {
+      const status = await checkStatus(taskId, PRODUCERS[i]);
+      if (status) {
+        setProgress(progress+20)
+
+        let producerName;
+        if (PRODUCERS[i] === 'dilla') {
+          producerName = 'J. Dilla'
+        } else if (PRODUCERS[i] == 'albini'){
+          producerName = 'Steve Albini'
+        } else {
+          producerName = 'Scott Burns'
+        }
+        holderArray.push({
+          "name": PRODUCERS[i],
+          "firstLast": producerName, 
+          "mix":status
+        })
+      }
+    }
+    setRemixedAudio(holderArray)
+    setStatus('complete')
+  }
+
+  const remixedTracks = remixedAudio.map(mix => 
+    <>
+      <div className="grid md:grid-cols-1">
+        <div className="space-y-2">
+          <h4 className="font-medium text-white/80">Remixed ({mix.firstLast} Style)</h4>
+          <AudioPlayer audioUrl={mix.mix} />
+        </div>
+    </div>
+    <div className="flex justify-center">
+      <a 
+        href={mix.mix} 
+        download={`${mix.name}_remix_${fileName}`}
+        className="btn btn-secondary flex items-center space-x-2"
+      >
+        <Download className="h-5 w-5" />
+        <span>Download Remixed Track</span>
+      </a>
+    </div>
+  </>
+  );
 
   return (
     <div className="bg-surface rounded-xl p-6 shadow-lg border border-white/10">
@@ -143,27 +196,14 @@ const RemixStudio: React.FC = () => {
             
             {status === 'complete' && remixedAudio && (
               <div className="space-y-6">
-                <div className="grid md:grid-cols-2 gap-4">
+                <div className="grid md:grid-cols-1">
                   <div className="space-y-2">
                     <h4 className="font-medium text-white/80">Original</h4>
                     {originalAudio && <AudioPlayer audioUrl={originalAudio} />}
                   </div>
-                  <div className="space-y-2">
-                    <h4 className="font-medium text-white/80">Remixed (J Dilla Style)</h4>
-                    <AudioPlayer audioUrl={remixedAudio} />
-                  </div>
                 </div>
+                {remixedTracks}
                 
-                <div className="flex justify-center">
-                  <a 
-                    href={remixedAudio} 
-                    download={`dilla_remix_${fileName}`}
-                    className="btn btn-secondary flex items-center space-x-2"
-                  >
-                    <Download className="h-5 w-5" />
-                    <span>Download Remixed Track</span>
-                  </a>
-                </div>
               </div>
             )}
           </motion.div>

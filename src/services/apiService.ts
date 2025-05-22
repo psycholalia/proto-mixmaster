@@ -17,35 +17,35 @@ export const processAudio = async (formData: FormData, onProgress?: ProgressCall
       onUploadProgress: onProgress,
     });
 
-    // Poll for completion
     const taskId = response.data.taskId;
-    let audioUrl = null;
-    let attempts = 0;
-    const maxAttempts = 30;
-
-    await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds before bothering the server
-
-    while (!audioUrl && attempts < maxAttempts) {
-      const statusResponse = await axios.get(`${API_URL}/status/${taskId}`);
-      if (statusResponse.data.status === 'complete') {
-        audioUrl = `${API_URL}/audio/${taskId}`;
-        break;
-      }
-      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds between polls
-      attempts++;
-    }
-
-    if (!audioUrl) {
-      throw new Error('Processing timeout');
-    }
-
     return {
       status: 'success',
       message: 'Audio processed successfully',
-      audioUrl,
+      taskId,
     };
+    
   } catch (error) {
     console.error('API error:', error);
     throw error;
   }
 };
+
+export const checkStatus = async (taskId: string, style: string) => {
+    console.log(`${taskId}_${style}`)
+    // Poll for completion
+    let audioUrl = null;
+    let attempts = 0;
+    const maxAttempts = 30;
+  while (!audioUrl && attempts < maxAttempts) {
+    const statusResponse = await axios.get(`${API_URL}/status/${taskId}_${style}`);
+    if (statusResponse.data.status === 'complete') {
+      audioUrl = `${API_URL}/audio/${taskId}_${style}`;
+      break;
+    }
+    attempts++;
+  }
+  if (!audioUrl) {
+    throw new Error('Processing timeout');
+  }
+  return audioUrl
+}
