@@ -60,9 +60,9 @@ async def apply_steve_albini_effect(
     input_path: str,
     output_path: str,
     task_id: str,
-    dynamics_ratio: float = 0.8,  # Controls dynamic range preservation
-    noise_floor: float = 0.005,   # Analog noise floor level
-    saturation: float = 0.3       # Analog tape saturation amount
+    dynamics_ratio: float = 0.8,
+    noise_floor: float = 0.005,
+    saturation: float = 0.3
 ):
     """
     Process audio to sound like Steve Albini's recording style:
@@ -85,66 +85,62 @@ async def apply_steve_albini_effect(
             os.remove(input_path)
         gc.collect()
 
-        def apply_analog_character(chunk, _):
-            # Add subtle analog noise floor
+        # Process in smaller chunks to manage memory
+        chunk_size = sr * 2  # 2-second chunks
+        output = np.zeros_like(y)
+        
+        for i in range(0, len(y), chunk_size):
+            chunk = y[i:min(i + chunk_size, len(y))]
+            
+            # Add subtle analog noise
             noise = np.random.normal(0, noise_floor, len(chunk))
             chunk = chunk + noise
-
+            
             # Apply subtle tape saturation
             chunk = np.tanh(chunk * (1 + saturation)) / (1 + saturation)
-
+            
             # Preserve dynamics (anti-compression)
             peaks = np.abs(chunk) > dynamics_ratio
             chunk[peaks] *= 1.2  # Enhance peaks
             
-            return chunk
+            # Enhance transients
+            if len(chunk) > 1:
+                envelope = np.abs(chunk)
+                transients = np.diff(envelope, prepend=envelope[0]) > 0.1
+                chunk[transients] *= 1.3
+            
+            # Store processed chunk
+            chunk_end = min(i + chunk_size, len(output))
+            output[i:chunk_end] = chunk[:chunk_end-i]
+            
+            # Force garbage collection
+            del chunk
+            gc.collect()
 
-        # Process in chunks
-        chunk_samples = sr * 5  # 5-second chunks
-        y_processed = process_in_chunks(y, chunk_samples, apply_analog_character)
-        del y
-        gc.collect()
-
-        # Enhance transients (Albini's punchy drum sound)
-        def enhance_transients(chunk, _):
-            # Calculate envelope
-            envelope = np.abs(chunk)
-            # Find transients (sudden increases in amplitude)
-            transients = np.diff(envelope, prepend=envelope[0]) > 0.1
-            # Boost transients
-            chunk[transients] *= 1.3
-            return chunk
-
-        y_processed = process_in_chunks(y_processed, chunk_samples, enhance_transients)
-
-        # Add subtle room ambience
-        def add_room_ambience(chunk, _):
-            room_size = 0.1  # Small room reverb
-            delayed = np.zeros_like(chunk)
-            delay_samples = int(sr * room_size)
-            if len(chunk) > delay_samples:
-                delayed[delay_samples:] = chunk[:-delay_samples] * 0.1
-                return chunk + delayed
-            return chunk
-
-        y_processed = process_in_chunks(y_processed, chunk_samples, add_room_ambience)
+        # Add room ambience as a separate pass
+        room_delay = int(sr * 0.02)  # 20ms room reflection
+        if len(output) > room_delay:
+            room = np.zeros_like(output)
+            room[room_delay:] = output[:-room_delay] * 0.1
+            output = output + room
+            del room
+            gc.collect()
 
         # Normalize while preserving dynamics
-        max_amplitude = np.max(np.abs(y_processed))
+        max_amplitude = np.max(np.abs(output))
         if max_amplitude > 0:
-            # Use softer normalization to maintain dynamic range
-            y_processed = y_processed / max_amplitude * 0.9
+            output = output / max_amplitude * 0.9
 
-        # Save with high quality settings but using PCM_16 format
+        # Save with proper format settings
         sf.write(
             output_path,
-            y_processed,
+            output,
             sr,
-            format='WAV',  # Explicitly set format to WAV
-            subtype='PCM_16'  # Use 16-bit PCM instead of 24-bit
+            format='WAV',
+            subtype='PCM_16'
         )
 
-        del y_processed
+        del output
         gc.collect()
 
         return {"status": "complete", "file_path": output_path}
