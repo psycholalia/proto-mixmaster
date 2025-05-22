@@ -135,12 +135,13 @@ async def apply_steve_albini_effect(
             # Use softer normalization to maintain dynamic range
             y_processed = y_processed / max_amplitude * 0.9
 
-        # Save with high quality settings
+        # Save with high quality settings but using PCM_16 format
         sf.write(
             output_path,
             y_processed,
             sr,
-            subtype='PCM_24'  # Use 24-bit for better dynamic range
+            format='WAV',  # Explicitly set format to WAV
+            subtype='PCM_16'  # Use 16-bit PCM instead of 24-bit
         )
 
         del y_processed
