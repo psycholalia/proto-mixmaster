@@ -57,8 +57,8 @@ const FileUploader = forwardRef<HTMLInputElement, FileUploaderProps>(
             </h3>
             
             <p className="text-white/60 mb-6 max-w-md mx-auto">
-              Upload your audio track and we'll transform it with J Dilla's 
-              signature style - quantized beats, vinyl warmth, and that unmistakable swing.
+              Upload your audio track and we'll transform it in a virtual seance with J. Dilla
+              Steve Albini and Scott Burns.
             </p>
             
             <button 
