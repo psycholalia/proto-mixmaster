@@ -24,9 +24,35 @@ const FileUploader = forwardRef<HTMLInputElement, FileUploaderProps>(
 
     return (
       <div className="text-center">
+        {/* Mobile-first file selection button */}
+        <div className="mb-6">
+          <button 
+            type="button" 
+            onClick={() => document.getElementById('file-input')?.click()}
+            className="btn btn-primary w-full sm:w-auto flex items-center justify-center space-x-2 mx-auto"
+          >
+            <Music className="h-5 w-5" />
+            <span>Select MP3 File</span>
+          </button>
+          <input
+            id="file-input"
+            type="file"
+            accept=".mp3,audio/mpeg"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onFileSelected(file);
+            }}
+          />
+          <p className="mt-2 text-sm text-white/40">
+            Maximum file size: 50MB
+          </p>
+        </div>
+
+        {/* Drag and drop area (hidden on mobile) */}
         <div
           {...getRootProps()}
-          className={`border-2 border-dashed rounded-xl p-12 transition-colors cursor-pointer ${
+          className={`hidden sm:block border-2 border-dashed rounded-xl p-8 transition-colors cursor-pointer ${
             isDragActive 
               ? 'border-primary-400 bg-primary-900/20' 
               : 'border-white/20 hover:border-primary-400/50 hover:bg-primary-900/10'
@@ -53,25 +79,12 @@ const FileUploader = forwardRef<HTMLInputElement, FileUploaderProps>(
             <h3 className="text-xl font-medium mb-2">
               {isDragActive 
                 ? "Drop it like it's hot!" 
-                : "Drag & drop your MP3 file"}
+                : "Or drag & drop your MP3 file here"}
             </h3>
             
             <p className="text-white/60 mb-6 max-w-md mx-auto">
-              Upload your audio track and we'll transform it in a virtual seance with J. Dilla
+              Upload your audio track and we'll transform it in a virtual seance with J. Dilla,
               Steve Albini and Scott Burns.
-            </p>
-            
-            <button 
-              type="button" 
-              className="btn btn-primary flex items-center space-x-2"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Music className="h-4 w-4" />
-              <span>Select MP3 File</span>
-            </button>
-            
-            <p className="mt-4 text-sm text-white/40">
-              Maximum file size: 50MB
             </p>
           </motion.div>
         </div>
