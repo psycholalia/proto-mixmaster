@@ -27,9 +27,13 @@ function App() {
                   <section className="mb-8">
                     <h2 className="text-2xl font-bold mb-2">Transform Your Sound</h2>
                     <p className="text-white/70">
-                      Upload your MP3 files and remix them in the iconic style of J Dilla - 
-                      featuring offbeat rhythms, unique sampling techniques, and that signature 
-                      loose, lo-fi feel that defined his sound.
+                      Upload your MP3 files and remix them in three iconic styles!
+                      <ul>
+                        <li>J Dilla - featuring offbeat rhythms, unique sampling techniques, and that signature 
+                        loose, lo-fi feel.</li>
+                        <li>Steve Albini - analog noise, subtle tape saturation, and a hint of that large room.</li>
+                        <li>Scott Burns - anger!</li>
+                      </ul>                      
                     </p>
                   </section>
                   <RemixStudio />
